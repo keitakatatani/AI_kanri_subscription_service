@@ -1,0 +1,11 @@
+{
+  "name": "mitsumori-assistant-backend",
+  "version": "1.0.0",
+  "description": "見積転記アシスタント バックエンドAPI",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@supabase/supabase-js": "^2.49.0"
+  }
+}
