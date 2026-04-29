@@ -58,8 +58,8 @@ if (!['active', 'trialing'].includes(subscription.status)) break;
           .single();
 
         const licenseKey = generateLicenseKey();
-        const expiresAt = new Date(subscription.current_period_end * 1000).toISOString();
-
+const periodEnd = subscription.trial_end || subscription.current_period_end;
+const expiresAt = new Date(periodEnd * 1000).toISOString();
         if (existing) {
           // 既存ライセンスを更新・再有効化
           await supabase
