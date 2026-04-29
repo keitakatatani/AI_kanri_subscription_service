@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       // ─── サブスク新規契約 ─────────────────────────────────
       case 'customer.subscription.created': {
         const subscription = event.data.object;
-        if (subscription.status !== 'active') break;
+if (!['active', 'trialing'].includes(subscription.status)) break;
 
         const customer = await stripe.customers.retrieve(subscription.customer);
         const email = customer.email;
