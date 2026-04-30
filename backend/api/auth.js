@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     // licensesテーブルを検索
     const { data, error } = await supabase
       .from('licenses')
-.select('id, email, license_key, plan, expires_at, active, monthly_count, monthly_limit, monthly_reset_at')
+      .select('id, email, license_key, plan, expires_at, active, monthly_count, monthly_limit, monthly_reset_at')
       .eq('email', email.toLowerCase())
       .eq('license_key', licenseKey.toUpperCase())
       .single();
