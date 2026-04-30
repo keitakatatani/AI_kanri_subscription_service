@@ -71,7 +71,10 @@ export default async function handler(req, res) {
     return res.status(200).json({
       valid: true,
       plan: data.plan,
-      expiresAt: data.expires_at
+      expiresAt: data.expires_at,
+      monthly_count: data.monthly_count || 0,
+      monthly_limit: data.monthly_limit || 0,
+      monthly_reset_at: data.monthly_reset_at
     });
 
   } catch (err) {
