@@ -1,212 +1,194 @@
 // api/stripe-webhook.js
-// Stripe決済完了時に自動でライセンス発行＋メール送信
+// Stripe決済完了時に自動でライセンス発行＋メール送信（3プラン対応版）
 
-import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_KEY
 );
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// ランダムなライセンスキーを生成（XXXX-XXXX-XXXX-XXXX形式）
+// プラン定義（価格IDからプラン情報を引く）
+const PLANS = {
+  'price_1TRnytQzmm0FrmNbWsd61Mbx': { name: 'ライト',     limit: 100 },
+  'price_1TRo1qQzmm0FrmNbpfVCjlTt': { name: 'スタンダード', limit: 200 },
+  'price_1TRo2jQzmm0FrmNbCb8trSpX': { name: 'プロ',      limit: 300 },
+};
+
+// Vercelの設定：raw bodyで受け取る
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+// raw body取得ヘルパー
+async function buffer(readable) {
+  const chunks = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+// ライセンスキー生成
 function generateLicenseKey() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const segment = () => Array.from({length: 4}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  return `${segment()}-${segment()}-${segment()}-${segment()}`;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const segments = [];
+  for (let i = 0; i < 4; i++) {
+    let seg = '';
+    for (let j = 0; j < 4; j++) {
+      seg += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    segments.push(seg);
+  }
+  return segments.join('-');
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).end();
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const buf = await buffer(req);
   const sig = req.headers['stripe-signature'];
-  let event;
 
+  let event;
   try {
-    // Stripeからのリクエストを検証
-    const rawBody = await getRawBody(req);
     event = stripe.webhooks.constructEvent(
-      rawBody,
+      buf,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).json({ error: `Webhook Error: ${err.message}` });
+    console.error('Webhook signature error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   try {
-    switch (event.type) {
+    // ===== 決済完了 =====
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const email = session.customer_email || session.customer_details?.email;
 
-      // ─── サブスク新規契約 ─────────────────────────────────
-      case 'customer.subscription.created': {
-        const subscription = event.data.object;
-if (!['active', 'trialing'].includes(subscription.status)) break;
-
-        const customer = await stripe.customers.retrieve(subscription.customer);
-        const email = customer.email;
-        if (!email) break;
-
-        // 既存ライセンスチェック
-        const { data: existing } = await supabase
-          .from('licenses')
-          .select('id')
-          .eq('email', email.toLowerCase())
-          .single();
-
-        const licenseKey = generateLicenseKey();
-const periodEnd = subscription.trial_end || subscription.current_period_end;
-const expiresAt = new Date(periodEnd * 1000).toISOString();
-        if (existing) {
-          // 既存ライセンスを更新・再有効化
-          await supabase
-            .from('licenses')
-            .update({
-              active: true,
-              expires_at: expiresAt,
-              stripe_subscription_id: subscription.id,
-              stripe_customer_id: subscription.customer
-            })
-            .eq('email', email.toLowerCase());
-        } else {
-          // 新規ライセンスを発行
-          await supabase.from('licenses').insert({
-            email: email.toLowerCase(),
-            license_key: licenseKey,
-            plan: 'スタンダード',
-            expires_at: expiresAt,
-            active: true,
-            stripe_subscription_id: subscription.id,
-            stripe_customer_id: subscription.customer
-          });
-        }
-
-        // メール送信
-        const { data: license } = await supabase
-          .from('licenses')
-          .select('license_key')
-          .eq('email', email.toLowerCase())
-          .single();
-
-        await sendLicenseEmail(email, license.license_key, expiresAt);
-        console.log(`✅ License issued for ${email}`);
-        break;
+      if (!email) {
+        console.error('No email in session');
+        return res.status(400).json({ error: 'No email' });
       }
 
-      // ─── サブスク更新（毎月の自動更新）──────────────────────
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object;
-        if (invoice.billing_reason !== 'subscription_cycle') break;
+      // サブスクリプション情報を取得して価格IDを特定
+      const subscription = await stripe.subscriptions.retrieve(session.subscription);
+      const priceId = subscription.items.data[0].price.id;
+      const planInfo = PLANS[priceId];
 
-        const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-        const customer = await stripe.customers.retrieve(invoice.customer);
-        const email = customer.email;
-        if (!email) break;
-
-        const expiresAt = new Date(subscription.current_period_end * 1000).toISOString();
-
-        await supabase
-          .from('licenses')
-          .update({ expires_at: expiresAt, active: true })
-          .eq('email', email.toLowerCase());
-
-        console.log(`✅ License renewed for ${email} until ${expiresAt}`);
-        break;
+      if (!planInfo) {
+        console.error('Unknown price ID:', priceId);
+        return res.status(400).json({ error: 'Unknown plan' });
       }
 
-      // ─── サブスク解約・支払い失敗 ─────────────────────────
-      case 'customer.subscription.deleted':
-      case 'invoice.payment_failed': {
-        const obj = event.data.object;
-        const customerId = obj.customer;
-        const customer = await stripe.customers.retrieve(customerId);
-        const email = customer.email;
-        if (!email) break;
+      // ライセンスキー生成
+      const licenseKey = generateLicenseKey();
 
+      // 1年後の有効期限
+      const expiresAt = new Date();
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+      // Supabaseにライセンスを登録
+      const { error: insertError } = await supabase
+        .from('licenses')
+        .insert({
+          email: email,
+          license_key: licenseKey,
+          plan: planInfo.name,
+          monthly_limit: planInfo.limit,
+          monthly_count: 0,
+          monthly_reset_at: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+          active: true,
+          stripe_customer_id: session.customer,
+          stripe_subscription_id: session.subscription,
+        });
+
+      if (insertError) {
+        console.error('Supabase insert error:', insertError);
+        return res.status(500).json({ error: 'License creation failed' });
+      }
+
+      // メール送信
+      await resend.emails.send({
+        from: 'noreply@crevias-inc.com',
+        to: email,
+        subject: '【見積転記アシスタント】ライセンス発行のお知らせ',
+        html: `
+          <div style="font-family: 'Hiragino Sans', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #4f6ef7;">ご購入ありがとうございます</h2>
+            <p>見積転記アシスタント <strong>${planInfo.name}プラン</strong>のお申し込みを受け付けました。</p>
+
+            <div style="background: #f5f5f7; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0 0 10px;"><strong>メールアドレス：</strong>${email}</p>
+              <p style="margin: 0 0 10px;"><strong>ライセンスキー：</strong><code style="background: #fff; padding: 4px 8px; border-radius: 4px; font-size: 16px;">${licenseKey}</code></p>
+              <p style="margin: 0 0 10px;"><strong>プラン：</strong>${planInfo.name}（月${planInfo.limit}回まで）</p>
+              <p style="margin: 0;"><strong>有効期限：</strong>${expiresAt.toLocaleDateString('ja-JP')}</p>
+            </div>
+
+            <h3>ご利用方法</h3>
+            <ol>
+              <li>Chrome拡張機能「見積転記アシスタント」を開く</li>
+              <li>上記のメールアドレスとライセンスキーを入力</li>
+              <li>「認証して開始」をクリック</li>
+            </ol>
+
+            <p style="color: #6b6b85; font-size: 12px; margin-top: 30px;">
+              ご不明な点がございましたら、このメールにご返信ください。<br>
+              Crevias Inc.
+            </p>
+          </div>
+        `,
+      });
+
+      console.log(`License issued: ${email} - ${planInfo.name}`);
+    }
+
+    // ===== サブスク更新（プラン変更含む） =====
+    if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object;
+      const priceId = subscription.items.data[0].price.id;
+      const planInfo = PLANS[priceId];
+
+      if (planInfo) {
+        // プラン変更時は monthly_limit も更新
         await supabase
           .from('licenses')
-          .update({ active: false })
-          .eq('email', email.toLowerCase());
+          .update({
+            plan: planInfo.name,
+            monthly_limit: planInfo.limit,
+            active: subscription.status === 'active',
+          })
+          .eq('stripe_subscription_id', subscription.id);
 
-        console.log(`⛔ License deactivated for ${email}`);
-        break;
+        console.log(`Plan updated: ${subscription.id} → ${planInfo.name}`);
       }
     }
 
-    res.status(200).json({ received: true });
+    // ===== サブスク解約 =====
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
 
-  } catch (err) {
-    console.error('Webhook handler error:', err);
-    res.status(500).json({ error: err.message });
+      await supabase
+        .from('licenses')
+        .update({ active: false })
+        .eq('stripe_subscription_id', subscription.id);
+
+      console.log(`Subscription canceled: ${subscription.id}`);
+    }
+
+    return res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Handler error:', error);
+    return res.status(500).json({ error: 'Internal error' });
   }
 }
-
-// ─── メール送信（Resend API）─────────────────────────────
-async function sendLicenseEmail(email, licenseKey, expiresAt) {
-  const expDate = new Date(expiresAt).toLocaleDateString('ja-JP');
-
-  const resp = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: process.env.FROM_EMAIL || 'noreply@yourdomain.com',
-      to: email,
-      subject: '【見積転記アシスタント】ライセンスキーのご案内',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-          <h2 style="color: #1d4ed8;">見積転記アシスタント</h2>
-          <p>この度はご契約いただきありがとうございます。</p>
-          <p>以下のライセンスキーでご利用いただけます。</p>
-
-          <div style="background: #f1f5f9; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
-            <p style="font-size: 12px; color: #64748b; margin: 0 0 8px;">ライセンスキー</p>
-            <p style="font-size: 24px; font-weight: bold; font-family: monospace; letter-spacing: 2px; color: #1e293b; margin: 0;">${licenseKey}</p>
-          </div>
-
-          <p style="font-size: 13px; color: #475569;">
-            📧 登録メールアドレス: <strong>${email}</strong><br>
-            📅 有効期限: <strong>${expDate}</strong>
-          </p>
-
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
-
-          <h3 style="font-size: 15px;">ご利用方法</h3>
-          <ol style="font-size: 13px; color: #475569; line-height: 2;">
-            <li>Chrome拡張機能をインストール</li>
-            <li>拡張機能を開き、メールアドレスとライセンスキーを入力</li>
-            <li>見積PDFをアップロードしてAI読み取り開始</li>
-          </ol>
-
-          <p style="font-size: 12px; color: #94a3b8; margin-top: 32px;">
-            ご不明な点はお気軽にお問い合わせください。
-          </p>
-        </div>
-      `
-    })
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json();
-    console.error('Email send failed:', err);
-  }
-}
-
-// ─── Raw bodyを取得（Stripe署名検証用）───────────────────
-async function getRawBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk; });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
-  });
-}
-
-export const config = {
-  api: { bodyParser: false }
-};
