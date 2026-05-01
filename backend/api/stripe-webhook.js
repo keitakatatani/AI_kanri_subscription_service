@@ -112,7 +112,7 @@ export default async function handler(req, res) {
       }
 
       await resend.emails.send({
-        from: 'noreply@crevias-inc.com',
+        from: 'noreply@ai-realestate-service.com',
         to: email,
         subject: '【見積転記アシスタント】ライセンス発行のお知らせ',
         html: `
@@ -177,7 +177,7 @@ export default async function handler(req, res) {
           const customer = await stripe.customers.retrieve(subscription.customer);
           if (customer.email) {
             await resend.emails.send({
-              from: 'noreply@crevias-inc.com',
+              from: 'noreply@ai-realestate-service.com',
               to: customer.email,
               subject: '【見積転記アシスタント】お支払いに関する重要なお知らせ',
               html: `
