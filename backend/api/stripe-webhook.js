@@ -14,9 +14,9 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // プラン定義（価格IDからプラン情報を引く）
 const PLANS = {
-  'price_1TRnytQzmm0FrmNbWsd61Mbx': { name: 'ライト',     limit: 100 },
-  'price_1TRo1qQzmm0FrmNbpfVCjlTt': { name: 'スタンダード', limit: 200 },
-  'price_1TRo2jQzmm0FrmNbCb8trSpX': { name: 'プロ',      limit: 300 },
+  'price_1TSRsbJSnFcpfzMA3jTKh63c': { name: 'ライト',     limit: 100 },
+  'price_1TSRudJSnFcpfzMAvtenGzsj': { name: 'スタンダード', limit: 200 },
+  'price_1TSRv0JSnFcpfzMAirK0wKwZ': { name: 'プロ',      limit: 300 },
 };
 
 export const config = {
