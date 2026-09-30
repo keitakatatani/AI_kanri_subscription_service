@@ -139,6 +139,7 @@ td .sub{margin:0;font-size:11.5px} .empty{padding:40px;text-align:center;color:v
 .map select{width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:4px}
 /* 取引のまとめて登録 */
 .wz h3{font-size:13.5px;font-weight:600;color:var(--ink);margin:20px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--brand2);display:flex;align-items:center;gap:8px}
+.wz h3.sub{font-size:12.5px;color:var(--ink2);border-bottom:0;margin:14px 0 6px;padding-bottom:0}
 .wz h3 label.on{margin-left:auto;font-weight:400;font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:4px}
 .wz .pty{display:grid;grid-template-columns:84px 1fr 1fr;gap:6px 12px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line)}
 .wz .pty>.lb{font-size:12.5px;font-weight:600;color:var(--ink2);padding-top:7px} .wz .pty .inp{width:100%}
@@ -147,6 +148,10 @@ td .sub{margin:0;font-size:11.5px} .empty{padding:40px;text-align:center;color:v
 .wz .emps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .wz .calc{display:flex;flex-wrap:wrap;gap:4px 20px;font-size:12.5px;color:var(--ink2);background:var(--bg);border-radius:6px;padding:9px 12px;margin-top:12px} .wz .calc b{color:var(--ink);font-size:13.5px} .wz .calc .nt{flex-basis:100%;font-size:11.5px;color:var(--mute)}
 .wz ul.cf{list-style:none;padding:0;margin:0;display:grid;gap:6px;font-size:13px} .wz ul.cf li{padding:7px 10px;border:1px solid var(--line);border-radius:6px;line-height:1.6}
+.dti{position:relative;display:block} .dti .inp{width:100%;padding-right:34px}
+.dti .dtb{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:14px;line-height:1;padding:4px 5px;border-radius:4px}
+.dti .dtb:hover{background:var(--bg)} .dti .dtp{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.inp.dt-bad{background:#FDECEC;border-color:#D9534F}
 .wz .kind{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;margin:0 0 14px;padding:10px 12px;background:var(--bg);border-radius:8px}
 .wz .kind>b{font-size:12.5px;color:var(--ink2)} .wz .kind .to{font-size:12px;color:var(--mute)}
 .wz .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#fff}
@@ -371,7 +376,9 @@ const CHANGELOG = [
   { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」で取引区分を買取にすると、自社を買主（仕入）または売主（販売）に自動で入れます。状態は決済日が今日までなら「保有中」「売却済」、それより先なら「契約済」「販売中」になります。社内担当は仕入が「PJ仕入」、販売が「PJ販売」として営業成績に入ります。' },
   { d:'2026-09-30', k:'imp', t:'取引台帳DBと買取再販DBの編集画面の下に「🔁 買取再販を開く」「📒 仕入の取引を開く」「📒 販売の取引を開く」ボタンを追加しました（「📝 まとめて登録」で作った取引だけ）。' },
   { d:'2026-09-30', k:'fix', t:'買取再販DBでまだ販売していない案件の粗利が「0 − 原価」のマイナスで計算され、仕入の担当者の営業成績がマイナスになることがあったのを修正しました。販売するまでは粗利 0 として扱い、販売して売上が入った時点で計上されます。' },
-  { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」の画面の一番上に「取引区分」の切り替え（仲介／買取・仕入／買取・販売）を置きました。取引台帳DBから開いたときも、ここで「買取・仕入」「買取・販売」を押すと買取再販DBにまとめて登録できます。選んだ区分の横に、どのDBに登録されるかが出ます（③にあった取引区分の欄はなくしました）。' },
+  { d:'2026-09-30', k:'imp', t:'日付の欄（歩合条件DBの適用開始日・適用終了日、各DBの契約日・決済日、物件概要書など すべて）を、キーボードで入力できるようにしました。「2020/1/1」「2020-01-01」「20200101」「2020年1月1日」「R2.1.1」「令和2年1月1日」などで入力でき、欄を離れると「2020-01-01」の形にそろいます。カレンダーから選びたいときは欄の右の 📅 を押してください。日付として読めない入力は欄が赤くなります。' },
+  { d:'2026-09-30', k:'fix', t:'CSV取込などで「2020/2/30」のような存在しない日付が、そのまま登録されてしまうことがあったのを修正しました（空欄として扱います）。' },
+  { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」の ④ を「売上の登録先」にして、「仲介売上DB（仲介）」「買取再販DB（仕入）」「買取再販DB（販売）」のどれかを押して選ぶようにしました。選んだ先の入力欄が下に出て、取引台帳DBと一緒にまとめて登録されます。取引台帳DBから開いたときも買取再販DBに登録できます（取引区分はここで選んだものになり、③の見出しの横に表示されます）。'},
   { d:'2026-09-30', k:'add', t:'取引台帳DBの「CSV取込」で、買取の取引も買取再販DBに一括で登録できるようにしました。買主が自社の行は「買取_仕入」、売主が自社の行は「買取_販売」として取り込み（自社名は「設定 > 物件概要書」の会社名。CSVに「取引区分」の列があればそちらを優先）、同じ物件の買取再販DBの案件に自動で紐付けます。案件の空欄（取得・販売の契約日と決済日、仕入価格、原価、売上、所有日数）はCSVの値で埋め、すでに入っている値は変えません。案件が無い物件は新しく作ります。取込前の確認画面に、取引区分の内訳と買取再販DBで作る・書き足す件数が出ます。' },
   { d:'2026-09-30', k:'fix', t:'CSV取込で「取引区分」（取引台帳DB）や「状態」（仲介売上DB）の列を取り込んでも、決まった値（仲介・決済済）で上書きされていた不具合を修正しました。CSVに値があるときはその値で取り込みます。' },
 ];
@@ -443,7 +450,18 @@ function yenParse(v){
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const todayStr = () => ymd(new Date());   // 日本時間の今日（朝9時前に前日扱いになる問題を修正）
 const uuid = () => crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c=='x'?r:(r&3|8)).toString(16)});
-const toDate = v => { if (!v) return null; const s = String(v).trim().split(/[ T]/)[0].replace(/[\/.年月]/g,'-').replace(/日/g,''); const m = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/); if (!m) return null; return `${m[1]}-${m[2].padStart(2,'0')}-${(m[3]||'1').padStart(2,'0')}`; };
+// 日付の読み取り: 2020-01-01 / 2020/1/1 / 2020.1.1 / 20200101 / 2020年1月1日 / R2.1.1・令和2年1月1日・H31/4/30（和暦）/ 全角数字 に対応。
+// 月までのとき（2020/1）は 1日。存在しない日付（2020/2/30 など）は null
+const toDate = v => { if (!v) return null;
+  let s = String(v).trim().replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[／．－]/g, c=>({'／':'/','．':'.','－':'-'})[c]);
+  const w = s.match(/^(令和|平成|昭和|[RHS])\s*(元|\d{1,2})\s*[.\/\-年]\s*(\d{1,2})(?:\s*[.\/\-月]\s*(\d{1,2}))?/i);
+  if (w){ const base={令和:2018,平成:1988,昭和:1925,R:2018,H:1988,S:1925}[w[1].length===1?w[1].toUpperCase():w[1]]; s=`${base+(w[2]==='元'?1:+w[2])}-${w[3]}-${w[4]||1}`; }
+  else if (/^\d{8}$/.test(s)) s = `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6)}`;
+  s = s.split(/[ T]/)[0].replace(/[\/.年月]/g,'-').replace(/日/g,'');
+  const m = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/); if (!m) return null;
+  const y=+m[1], mo=+m[2], d=+(m[3]||1), dt=new Date(y,mo-1,d);
+  if (dt.getFullYear()!==y || dt.getMonth()!==mo-1 || dt.getDate()!==d) return null;
+  return `${m[1]}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`; };
 // 年度: 決算月は「設定 > 決算期」で変更（既定 3月）。例: 3月決算なら "2027年3月期" = 2026-04-01〜2027-03-31
 const fyEnd = () => { const m = +(store && store.settings && store.settings.fiscal_end_month); return m>=1 && m<=12 ? m : 3; };
 const fyOf = d => { if (!d) return null; const [y,m] = String(d).split('-').map(Number); if(!y||!m) return null; const e = fyEnd(); return (m > e ? y+1 : y) + '年' + e + '月期'; };
@@ -1179,7 +1197,21 @@ function yenLive(el){
 }
 document.addEventListener('compositionend', e=>{ if(e.target.matches && e.target.matches('input[data-yen]')) yenLive(e.target); });
 document.addEventListener('input', e=>{ const el=e.target; if(!el.matches) return; if(el.matches('input[data-yen]') && !e.isComposing) yenLive(el); });
+// 日付の入力欄（キーボードで「2020/1/1」「20200101」「R2.1.1」なども入力でき、📅 でカレンダーからも選べる）
+function dateInputHtml(id, v){
+  return `<span class="dti"><input class="inp" type="text" inputmode="numeric" data-date="1" id="${id}" value="${esc(v||'')}" placeholder="例: 2020/1/1" autocomplete="off"><button type="button" class="dtb" tabindex="-1" title="カレンダーから選ぶ" aria-label="カレンダーから選ぶ">📅</button><input type="date" class="dtp" tabindex="-1" aria-hidden="true"></span>`;
+}
+document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('.dti .dtb'); if(!b) return; e.preventDefault();
+  const w=b.parentNode, t=w.querySelector('input[data-date]'), pk=w.querySelector('.dtp'); pk.value=toDate(t.value)||'';
+  try{ pk.showPicker(); }catch(x){ pk.style.pointerEvents='auto'; pk.focus(); pk.click(); } });
+document.addEventListener('change', e=>{ const pk=e.target; if(!pk.matches || !pk.matches('.dti .dtp')) return; e.stopPropagation();
+  const t=pk.parentNode.querySelector('input[data-date]'); t.value=pk.value; t.classList.remove('dt-bad'); t.title='';
+  t.dispatchEvent(new Event('input',{bubbles:true})); t.dispatchEvent(new Event('change',{bubbles:true})); }, true);
 document.addEventListener('focusout', e=>{ const el=e.target; if(!el.matches) return;
+  if (el.matches('input[data-date]')){ const v=el.value.trim();
+    if (!v){ el.classList.remove('dt-bad'); el.title=''; }
+    else { const d=toDate(v); if(d){ el.classList.remove('dt-bad'); el.title=''; if(d!==v){ el.value=d; el.dispatchEvent(new Event('change',{bubbles:true})); } }
+      else { el.classList.add('dt-bad'); el.title='日付として読めません。例: 2020/1/1、20200101、R2.1.1'; toast('日付として読めません（例: 2020/1/1、20200101、R2.1.1）',true); } } }
   if (el.matches('input[data-yen]') && el.value.trim()){ const n=yenParse(toHalf(el.value)); if(n!=null) el.value=Math.round(n).toLocaleString('ja-JP'); }
   if (el.matches('input[data-dec]') && el.value.trim()){ const n=num(toHalf(el.value)); if(n!=null) el.value=n.toFixed(+el.dataset.dec); } });
 // まとめて整形（AI 読み取りで値を入れたあとなど）
@@ -1213,7 +1245,7 @@ function fieldInput(f, v, k){
   if (f.t==='bool') return `<select class="inp" id="${id}"><option value="">—</option><option value="1" ${v===true?'selected':''}>○</option><option value="0" ${v===false?'selected':''}>×</option></select>`;
   if (f.t==='textarea') return `<textarea class="inp" id="${id}">${esc(v)}</textarea>`;
   if (f.t==='tags') return `<input class="inp" id="${id}" value="${esc(Array.isArray(v)?v.join(','):v)}" placeholder="${f.o?f.o.join(' / '):''}（複数は , 区切り）">`;
-  if (f.t==='date') return `<input class="inp" type="date" id="${id}" value="${esc(v)}">`;
+  if (f.t==='date') return dateInputHtml(id, v);
   if (f.t==='yen') return `<input class="inp" type="text" inputmode="numeric" data-yen="1" id="${id}" value="${esc(fmtComma(v))}" autocomplete="off">`;
   if (f.t==='num' && f.dec!=null) return `<input class="inp" type="text" inputmode="decimal" data-dec="${f.dec}" id="${id}" value="${esc(fmtDec(v,f.dec))}" autocomplete="off">`;
   if (f.t==='num') return `<input class="inp" type="number" step="any" id="${id}" value="${esc(v)}">`;
@@ -2124,7 +2156,8 @@ function openOverview(id){
   const t = ovCfg();
   $('#mTitle').textContent = '📄 物件概要書（Excel）を作成' + (rec ? '：' + (rec.name||'') : '');
   const inp = f => { const v=vals[f.k]??''; const id2='ov_'+f.k;
-    const tp = f.t==='date' ? 'date' : ['num','yen','yentext','pct'].includes(f.t) ? 'text" inputmode="decimal' : 'text';
+    const tp = ['num','yen','yentext','pct'].includes(f.t) ? 'text" inputmode="decimal' : 'text';
+    if (f.t==='date') return `<div style="grid-column:span ${f.c||1}"><label>${esc(f.l)}${f.req?' <b>*</b>':''}</label>${dateInputHtml(id2, toDate(v)||'')}</div>`;
     return `<div style="grid-column:span ${f.c||1}"><label>${esc(f.l)}${f.req?' <b>*</b>':''}</label><input class="inp" id="${id2}" type="${tp}" value="${esc(f.t==='date'?(toDate(v)||''):v)}" ${f.o?`list="ovl_${f.o}"`:''} placeholder="${esc(f.ph||'')}"></div>`; };
   const road = rec && rec.road ? `<div class="sub" style="grid-column:1/-1;margin:0">物件情報DBの接道状況: <b>${esc(rec.road)}</b></div>` : '';
   $('#mBody').innerHTML = `${t?'':`<div class="help" style="background:var(--amber2);border-color:#EBD3A8;color:var(--amber)">自社のひな型がまだ登録されていません。<a href="#/settings" onclick="S.tab.settings='overview';closeModal()">設定 &gt; 物件概要書</a> でエクセルのひな型を登録してください（入力だけ先に進めることもできます）。</div>`}
@@ -2539,7 +2572,6 @@ function openBundle(preKind){
   $('#mTitle').textContent='📝 取引をまとめて登録';
   $('#mBody').innerHTML = `<div class="wz" id="wzIn">
     <p class="sub" style="margin-bottom:12px">物件・売主・買主・仲介会社・担当者・金額をこの画面だけで入力します。物件情報DB・企業情報DB・担当者情報DBに無いものは登録のときに自動で新しく作り、あるものはそのまま紐付けます。</p>
-    <div class="kind"><b>取引区分</b><div class="seg" id="wzKind">${[['仲介','仲介'],['買取_仕入','買取・仕入'],['買取_販売','買取・販売']].map(([v,l])=>`<button type="button" data-k="${v}">${l}</button>`).join('')}</div><span class="to" id="wzKindTo"></span></div>
     <div class="drop" id="wzDrop" style="padding:16px;cursor:pointer">📄 売買契約書・重要事項説明書の PDF／画像をここにドロップ（クリックで選択・複数可）<br><span style="font-size:12px">Claude が物件・当事者・金額を読み取り、空いている欄に入れます（要: 設定 &gt; 接続 の APIキー）。</span><input type="file" id="wzFile" accept=".pdf,image/*" multiple style="display:none"></div>
     <div id="wzOcr" style="font-size:12px;color:var(--mute);margin-top:6px"></div>
 
@@ -2555,12 +2587,14 @@ function openBundle(preKind){
     <div class="sub" style="font-size:11.5px;margin:-2px 0 4px">候補から選ぶと既存の企業・担当者に紐付きます。候補に無い名前は、住所・電話などを入れておくと一緒に登録されます。</div>
     <div>${WZ_PARTY.map(p=>wzPartyHtml(p,self)).join('')}</div>
 
-    <h3>③ 取引条件（取引台帳DB）</h3>
+    <h3>③ 取引条件（取引台帳DB）<span class="chip g" id="wzKindChip" style="font-weight:500"></span></h3>
     <div class="f">${WZ_DEAL_KEYS.map(k=>wzField('deals',k,'wd_', k==='kind'?(preKind||'仲介'):null)).join('')}</div>
     <div class="sub" style="font-size:11.5px;margin:4px 0 0">総額は「土地＋建物＋消費税」、残金は「総額−手付金」で自動計算します（直接入力するとその値を使います）。</div>
 
+    <h3>④ 売上の登録先（仲介売上DB か 買取再販DB を選択）</h3>
+    <div class="kind"><div class="seg" id="wzKind" role="group" aria-label="売上の登録先">${[['仲介','仲介売上DB（仲介）'],['買取_仕入','買取再販DB（仕入）'],['買取_販売','買取再販DB（販売）']].map(([v,l])=>`<button type="button" data-k="${v}">${l}</button>`).join('')}</div><span class="to" id="wzKindTo"></span></div>
     <div id="wzBs">
-      <h3>④ 仲介売上・社内担当（仲介売上DB）<label class="on"><input type="checkbox" id="wb_on" checked> 仲介売上DBにも登録する</label></h3>
+      <h3 class="sub">仲介売上DB に登録する内容・社内担当<label class="on"><input type="checkbox" id="wb_on" checked> 仲介売上DBにも登録する</label></h3>
       <div id="wzBsBody">
         <div class="f">${['stance','status','cost_seller','cost_buyer','paid_on'].map(k=>wzField('brokerage_sales',k,'wb_')).join('')}
           <div class="w"><label>社内担当（営業成績は人数で均等に按分。あとで仲介売上DBの編集画面で変えられます）</label>
@@ -2570,7 +2604,7 @@ function openBundle(preKind){
       </div>
     </div>
     <div id="wzRs" style="display:none">
-      <h3><span id="wzRsTitle">④ 買取再販（買取再販DB）</span><label class="on"><input type="checkbox" id="wr_on" checked> 買取再販DBにも登録する</label></h3>
+      <h3 class="sub"><span id="wzRsTitle">買取再販DB に登録する内容</span><label class="on"><input type="checkbox" id="wr_on" checked> 買取再販DBにも登録する</label></h3>
       <div id="wzRsBody">
         <div data-rs="sell" style="margin-bottom:10px"><label style="display:block;font-size:12px;color:var(--ink2);margin-bottom:3px">どの案件の販売ですか（仕入のときに登録した買取再販DBの案件）</label>
           <select class="inp" id="wr_pick" style="width:100%"></select><div class="st" id="wzs_r"></div></div>
@@ -2588,7 +2622,7 @@ function openBundle(preKind){
   </div><div class="wz" id="wzCf" style="display:none"></div>`;
   wzFootInput();
   $('#modal').classList.add('on'); $('#ov').classList.add('on');
-  // 取引区分は上の切り替えで選ぶ（③の選択欄は隠して、値の受け皿として使う）
+  // 取引区分は ④ の「売上の登録先」で選ぶ（③の選択欄は隠して、値の受け皿として使う）
   $('#wd_kind').parentNode.style.display='none';
   $('#wzKind').querySelectorAll('button').forEach(bt=>bt.onclick=()=>{ $('#wd_kind').value=bt.dataset.k; wzRefresh(); });
   wzBind(); wzRefresh();
@@ -2656,7 +2690,8 @@ function wzRefresh(){
   const isBroker = wzV('wd_kind')==='仲介';
   $('#wzBs').style.display = isBroker ? '' : 'none';
   { const kv=wzV('wd_kind'); $('#wzKind').querySelectorAll('button').forEach(bt=>{ bt.classList.toggle('on', bt.dataset.k===kv); bt.setAttribute('aria-pressed', bt.dataset.k===kv); });
-    $('#wzKindTo').textContent = {'仲介':'登録先: 取引台帳DB・仲介売上DB（物件・企業・担当者も）','買取_仕入':'登録先: 取引台帳DB・買取再販DB（新しい案件を作成）','買取_販売':'登録先: 取引台帳DB・買取再販DB（仕入の案件に販売を記録）'}[kv]||''; }
+    $('#wzKindTo').textContent = {'仲介':'取引区分「仲介」で取引台帳DBに登録し、売上を仲介売上DBに登録します','買取_仕入':'取引区分「買取_仕入」で取引台帳DBに登録し、買取再販DBに新しい案件を作ります','買取_販売':'取引区分「買取_販売」で取引台帳DBに登録し、仕入のときの買取再販DBの案件に販売を記録します'}[kv]||'';
+    $('#wzKindChip').textContent = '取引区分: '+(kv||'—')+'（④で切り替え）'; }
   wzRefreshResale(pr, pn, L, B, T, TOT);
   $('#wzBsBody').style.display = $('#wb_on').checked ? '' : 'none';
   const fS=wzYen('wd_fee_seller_ex')||0, fB=wzYen('wd_fee_buyer_ex')||0, cS=wzYen('wb_cost_seller')||0, cB=wzYen('wb_cost_buyer')||0;
@@ -2918,7 +2953,7 @@ function wzRefreshResale(pr, pn, L, B, T, TOT){
   const kind=wzV('wd_kind');
   if(kind!==WZ.lastKind){ if(self && mode==='buy' && !wzV('wc_buyer')) $('#wc_buyer').value=self; if(self && mode==='sell' && !wzV('wc_seller')) $('#wc_seller').value=self; WZ.lastKind=kind; }
   if(!mode) return;
-  $('#wzRsTitle').textContent = mode==='buy' ? '④ 買取再販・仕入（買取再販DB）' : '④ 買取再販・販売（買取再販DB）';
+  $('#wzRsTitle').textContent = mode==='buy' ? '買取再販DB に登録する内容（仕入）・社内担当' : '買取再販DB に登録する内容（販売）・社内担当';
   $('#wzRsBody').style.display = $('#wr_on').checked ? '' : 'none';
   $('#wzRsEmpL').textContent = `社内担当（成績項目「${mode==='buy'?'PJ仕入':'PJ販売'}」。営業成績は人数で均等に按分し、販売して粗利が出たときに計上されます）`;
   // 販売: 案件の候補（まだ売却していない案件。物件が同じものを先頭に）
