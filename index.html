@@ -139,6 +139,7 @@ td .sub{margin:0;font-size:11.5px} .empty{padding:40px;text-align:center;color:v
 .map select{width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:4px}
 /* 取引のまとめて登録 */
 .wz h3{font-size:13.5px;font-weight:600;color:var(--ink);margin:20px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--brand2);display:flex;align-items:center;gap:8px}
+.wz .off{opacity:.5} .wz .off:focus-within{opacity:.85}
 .wz h3.sub{font-size:12.5px;color:var(--ink2);border-bottom:0;margin:14px 0 6px;padding-bottom:0}
 .wz h3 label.on{margin-left:auto;font-weight:400;font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:4px}
 .wz .pty{display:grid;grid-template-columns:84px 1fr 1fr;gap:6px 12px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line)}
@@ -378,11 +379,13 @@ const CHANGELOG = [
   { d:'2026-09-30', k:'fix', t:'買取再販DBでまだ販売していない案件の粗利が「0 − 原価」のマイナスで計算され、仕入の担当者の営業成績がマイナスになることがあったのを修正しました。販売するまでは粗利 0 として扱い、販売して売上が入った時点で計上されます。' },
   { d:'2026-09-30', k:'imp', t:'日付の欄（歩合条件DBの適用開始日・適用終了日、各DBの契約日・決済日、物件概要書、一覧の見出しの ▼ で日付を範囲で絞り込むときの欄など すべて）を、キーボードで入力できるようにしました。「2020/1/1」「2020-01-01」「20200101」「2020年1月1日」「R2.1.1」「令和2年1月1日」などで入力でき、欄を離れると「2020-01-01」の形にそろいます。カレンダーから選びたいときは欄の右の 📅 を押してください。日付として読めない入力は欄が赤くなります。' },
   { d:'2026-09-30', k:'fix', t:'CSV取込などで「2020/2/30」のような存在しない日付が、そのまま登録されてしまうことがあったのを修正しました（空欄として扱います）。' },
+  { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」の ④ 仲介売上 と ⑤ 買取再販 の入力欄を、いつも表示するようにしました（これまでは⑤にチェックを入れるまで入力欄が出ませんでした）。登録しない方は薄く表示され、薄い欄に入力するとその区分に自動でチェックが入ります。' },
+  { d:'2026-09-30', k:'imp', t:'左下の版の表示に「#」と番号を付けました（例: 1.0.0 (2026-09-30 #86)）。番号は更新のたびに増えるので、同じ日に何度か更新したときも、最新の画面が表示されているかを確認できます。' },
   { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」を ④ 仲介売上（仲介売上DB）と ⑤ 買取再販（買取再販DB）の2つに分けました。取引台帳DBから開いたときも、⑤の「買取再販DBに登録する」にチェックを入れて「仕入」か「販売」を押すと、取引台帳DBと一緒に買取再販DBへ一括登録されます。⑤を入れると④のチェックは自動で外れます（両方に登録したいときは④にもチェックを入れてください）。取引区分は⑤の内容で自動で決まり、③の見出しの横に表示されます。' },
   { d:'2026-09-30', k:'add', t:'取引台帳DBの「CSV取込」で、買取の取引も買取再販DBに一括で登録できるようにしました。買主が自社の行は「買取_仕入」、売主が自社の行は「買取_販売」として取り込み（自社名は「設定 > 物件概要書」の会社名。CSVに「取引区分」の列があればそちらを優先）、同じ物件の買取再販DBの案件に自動で紐付けます。案件の空欄（取得・販売の契約日と決済日、仕入価格、原価、売上、所有日数）はCSVの値で埋め、すでに入っている値は変えません。案件が無い物件は新しく作ります。取込前の確認画面に、取引区分の内訳と買取再販DBで作る・書き足す件数が出ます。' },
   { d:'2026-09-30', k:'fix', t:'CSV取込で「取引区分」（取引台帳DB）や「状態」（仲介売上DB）の列を取り込んでも、決まった値（仲介・決済済）で上書きされていた不具合を修正しました。CSVに値があるときはその値で取り込みます。' },
 ];
-const VERSION = '1.0.0 (' + CHANGELOG[CHANGELOG.length-1].d + ')';
+const VERSION = '1.0.0 (' + CHANGELOG[CHANGELOG.length-1].d + ' #' + CHANGELOG.length + ')';   // #の数字＝更新履歴の件数。同じ日の更新でも新旧を見分けられる
 
 // =====================================================================
 // 共通ユーティリティ
@@ -2642,6 +2645,10 @@ function wzSuggest(id, dl, fn){ const inp=$('#'+id), d=$('#'+dl); if(!inp||!d) r
 function wzBind(){
   const body=$('#wzIn'); let tm=null;
   const manual=['wd_total_price','wd_balance','wb_stance','wb_status','wr_status'];
+  const autoOn=e=>{ const t=e.target; if(!t||t.id==='wb_on'||t.id==='wr_on'||t.classList.contains('dtp')) return;
+    if($('#wzRsBody').contains(t) && !$('#wr_on').checked) $('#wr_on').checked=true;
+    if($('#wzBsBody').contains(t) && !$('#wb_on').checked){ $('#wb_on').checked=true; $('#wb_on').dataset.manual='1'; } };
+  body.addEventListener('input', autoOn, true); body.addEventListener('change', autoOn, true);
   body.addEventListener('input', e=>{ if(manual.includes(e.target.id)) e.target.dataset.manual=e.target.value.trim()?'1':''; clearTimeout(tm); tm=setTimeout(wzRefresh,150); });
   body.addEventListener('change', e=>{ if(manual.includes(e.target.id)) e.target.dataset.manual=e.target.value.trim()?'1':''; wzRefresh(); });
   body.querySelectorAll('[data-self]').forEach(b=>b.onclick=()=>{ $('#wc_'+b.dataset.self).value=(ovCo().name||'').trim(); wzRefresh(); });
@@ -2697,12 +2704,12 @@ function wzRefresh(){
   if(WZ.lastRsOn!==undefined && WZ.lastRsOn!==rsOn && !$('#wb_on').dataset.manual) $('#wb_on').checked=!rsOn;   // ⑤を入れたら④を外す（④を手で変えていれば、そのまま）
   WZ.lastRsOn=rsOn;
   $('#wd_kind').value = rsOn ? (WZ.rsKind||'買取_仕入') : '仲介';
-  { const kv=wzV('wd_kind'); $('#wzKind').querySelectorAll('button').forEach(bt=>{ const on=rsOn&&bt.dataset.k===kv; bt.classList.toggle('on',on); bt.setAttribute('aria-pressed',on); });
-    $('#wzKindTo').textContent = !rsOn ? '買取再販DBにも登録するときは、仕入か販売を押してください' : kv==='買取_仕入' ? '買取再販DBに新しい案件を作ります' : '仕入のときに作った買取再販DBの案件に、販売を記録します';
+  { const kv=wzV('wd_kind'); $('#wzKind').querySelectorAll('button').forEach(bt=>{ const on=bt.dataset.k===(rsOn?kv:(WZ.rsKind||'買取_仕入')); bt.classList.toggle('on',on); bt.setAttribute('aria-pressed',on); });
+    $('#wzKindTo').textContent = !rsOn ? '買取再販DBに登録するときは、チェックを入れるか、下の欄に入力してください（入力すると自動でチェックが入ります）' : kv==='買取_仕入' ? '買取再販DBに新しい案件を作ります' : '仕入のときに作った買取再販DBの案件に、販売を記録します';
     $('#wzKindChip').textContent = '取引区分: '+kv+(rsOn?'（⑤ 買取再販から自動）':'（⑤ 買取再販を登録すると買取になります）'); }
   // ④ 仲介売上
   wzRefreshResale(pr, pn, L, B, T, TOT);
-  $('#wzBsBody').style.display = $('#wb_on').checked ? '' : 'none';
+  $('#wzBsBody').style.display=''; $('#wzBsBody').classList.toggle('off', !$('#wb_on').checked);   // ④も同じく、登録しないときは薄く表示
   const fS=wzYen('wd_fee_seller_ex')||0, fB=wzYen('wd_fee_buyer_ex')||0, cS=wzYen('wb_cost_seller')||0, cB=wzYen('wb_cost_buyer')||0;
   const st=$('#wb_stance');
   if(!st.dataset.manual){ let v='';
@@ -2956,12 +2963,13 @@ const WZ_RS_SELL_KEYS = ['yield_at_sale','yield_net_at_sale','construction_cost_
 const wzRsMode = () => ({'買取_仕入':'buy','買取_販売':'sell'})[wzV('wd_kind')] || null;
 function wzRv(k){ const f=wzF('resale_projects',k), v=wzV('wr_'+k); if(v==='') return null; return f.t==='yen'?yenParse(toHalf(v)):f.t==='num'?num(toHalf(v)):f.t==='date'?toDate(v):v; }
 function wzRefreshResale(pr, pn, L, B, T, TOT){
-  const mode=wzRsMode(), self=(ovCo().name||'').trim();
-  $('#wzRsBody').style.display = $('#wr_on').checked && mode ? '' : 'none';
+  // ⑤の入力欄はいつも表示する。「買取再販DBに登録する」が外れているときは薄く表示（入力すると自動でチェックが入る）
+  const on=$('#wr_on').checked, realMode=wzRsMode(), self=(ovCo().name||'').trim();
+  const mode = realMode || ({'買取_仕入':'buy','買取_販売':'sell'})[WZ.rsKind||'買取_仕入'];
+  $('#wzRsBody').style.display=''; $('#wzRsBody').classList.toggle('off', !on);
   // 取引区分を買取に変えたとき: 自社を買主（仕入）／売主（販売）に入れる
   const kind=wzV('wd_kind');
-  if(kind!==WZ.lastKind){ if(self && mode==='buy' && !wzV('wc_buyer')) $('#wc_buyer').value=self; if(self && mode==='sell' && !wzV('wc_seller')) $('#wc_seller').value=self; WZ.lastKind=kind; }
-  if(!mode) return;
+  if(kind!==WZ.lastKind){ if(self && realMode==='buy' && !wzV('wc_buyer')) $('#wc_buyer').value=self; if(self && realMode==='sell' && !wzV('wc_seller')) $('#wc_seller').value=self; WZ.lastKind=kind; }
   $('#wzRsTitle').textContent = mode==='buy' ? '仕入の内容・社内担当' : '販売の内容・社内担当';
   $('#wzRsEmpL').textContent = `社内担当（成績項目「${mode==='buy'?'PJ仕入':'PJ販売'}」。営業成績は人数で均等に按分し、販売して粗利が出たときに計上されます）`;
   // 販売: 案件の候補（まだ売却していない案件。物件が同じものを先頭に）
