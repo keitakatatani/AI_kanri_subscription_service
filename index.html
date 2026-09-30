@@ -376,7 +376,7 @@ const CHANGELOG = [
   { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」で取引区分を買取にすると、自社を買主（仕入）または売主（販売）に自動で入れます。状態は決済日が今日までなら「保有中」「売却済」、それより先なら「契約済」「販売中」になります。社内担当は仕入が「PJ仕入」、販売が「PJ販売」として営業成績に入ります。' },
   { d:'2026-09-30', k:'imp', t:'取引台帳DBと買取再販DBの編集画面の下に「🔁 買取再販を開く」「📒 仕入の取引を開く」「📒 販売の取引を開く」ボタンを追加しました（「📝 まとめて登録」で作った取引だけ）。' },
   { d:'2026-09-30', k:'fix', t:'買取再販DBでまだ販売していない案件の粗利が「0 − 原価」のマイナスで計算され、仕入の担当者の営業成績がマイナスになることがあったのを修正しました。販売するまでは粗利 0 として扱い、販売して売上が入った時点で計上されます。' },
-  { d:'2026-09-30', k:'imp', t:'日付の欄（歩合条件DBの適用開始日・適用終了日、各DBの契約日・決済日、物件概要書など すべて）を、キーボードで入力できるようにしました。「2020/1/1」「2020-01-01」「20200101」「2020年1月1日」「R2.1.1」「令和2年1月1日」などで入力でき、欄を離れると「2020-01-01」の形にそろいます。カレンダーから選びたいときは欄の右の 📅 を押してください。日付として読めない入力は欄が赤くなります。' },
+  { d:'2026-09-30', k:'imp', t:'日付の欄（歩合条件DBの適用開始日・適用終了日、各DBの契約日・決済日、物件概要書、一覧の見出しの ▼ で日付を範囲で絞り込むときの欄など すべて）を、キーボードで入力できるようにしました。「2020/1/1」「2020-01-01」「20200101」「2020年1月1日」「R2.1.1」「令和2年1月1日」などで入力でき、欄を離れると「2020-01-01」の形にそろいます。カレンダーから選びたいときは欄の右の 📅 を押してください。日付として読めない入力は欄が赤くなります。' },
   { d:'2026-09-30', k:'fix', t:'CSV取込などで「2020/2/30」のような存在しない日付が、そのまま登録されてしまうことがあったのを修正しました（空欄として扱います）。' },
   { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」を ④ 仲介売上（仲介売上DB）と ⑤ 買取再販（買取再販DB）の2つに分けました。取引台帳DBから開いたときも、⑤の「買取再販DBに登録する」にチェックを入れて「仕入」か「販売」を押すと、取引台帳DBと一緒に買取再販DBへ一括登録されます。⑤を入れると④のチェックは自動で外れます（両方に登録したいときは④にもチェックを入れてください）。取引区分は⑤の内容で自動で決まり、③の見出しの横に表示されます。' },
   { d:'2026-09-30', k:'add', t:'取引台帳DBの「CSV取込」で、買取の取引も買取再販DBに一括で登録できるようにしました。買主が自社の行は「買取_仕入」、売主が自社の行は「買取_販売」として取り込み（自社名は「設定 > 物件概要書」の会社名。CSVに「取引区分」の列があればそちらを優先）、同じ物件の買取再販DBの案件に自動で紐付けます。案件の空欄（取得・販売の契約日と決済日、仕入価格、原価、売上、所有日数）はCSVの値で埋め、すでに入っている値は変えません。案件が無い物件は新しく作ります。取込前の確認画面に、取引区分の内訳と買取再販DBで作る・書き足す件数が出ます。' },
@@ -1084,9 +1084,12 @@ function openColFilter(k, fk, btn){
   const range=cfIsRange(f);
   let body='';
   if (range){
-    const tp=f.t==='date'?'date':'text', ph=f.t==='date'?'':(f.t==='yen'||f.t==='calc'?'例: 5000万 / 1億':'数値');
-    body=`<div style="font-size:12px;color:var(--ink2);margin-bottom:4px">範囲で絞り込み（どちらか一方だけでも可）</div>
-      <div style="display:flex;gap:6px;align-items:center"><input class="inp" id="cf_min" type="${tp}" placeholder="${ph}" value="${esc(cur&&cur.min!=null?cur.min:'')}" style="width:110px;padding:5px 7px">〜<input class="inp" id="cf_max" type="${tp}" placeholder="${ph}" value="${esc(cur&&cur.max!=null?cur.max:'')}" style="width:110px;padding:5px 7px"></div>`;
+    const ph=f.t==='yen'||f.t==='calc'?'例: 5000万 / 1億':'数値';
+    // 日付はキーボードで入力（2020/1/1・20200101・R2.1.1 など）でき、📅 でカレンダーからも選べる
+    const box=id=>{ const v=cur&&cur[id==='cf_min'?'min':'max']; return f.t==='date' ? dateInputHtml(id, v||'', 'width:130px;display:inline-block', 'padding:5px 30px 5px 7px')
+      : `<input class="inp" id="${id}" type="text" placeholder="${ph}" value="${esc(v!=null?v:'')}" style="width:110px;padding:5px 7px">`; };
+    body=`<div style="font-size:12px;color:var(--ink2);margin-bottom:4px">範囲で絞り込み（どちらか一方だけでも可）${f.t==='date'?'<br><span style="color:var(--mute)">例: 2020/1/1、20200101、R2.1.1</span>':''}</div>
+      <div style="display:flex;gap:6px;align-items:center">${box('cf_min')}〜${box('cf_max')}</div>`;
   } else {
     // 候補 = 他の列のフィルタを通った行にある値（Excel と同じ）
     const cnt=new Map();
@@ -1113,7 +1116,7 @@ function openColFilter(k, fk, btn){
   const apply=c=>{ S.colf[k]=S.colf[k]||{}; if(c) S.colf[k][fk]=c; else delete S.colf[k][fk]; cfSave(); S.page[k]=0; closeColFilter(); render(); };
   if (range){
     const rd=id=>{ const v=$(id).value.trim(); if(!v) return ''; return f.t==='date' ? toDate(v) : (f.t==='yen'||f.t==='calc' ? yenParse(v) : num(v)); };
-    $('#cf_ok').onclick=()=>{ const mn=rd('#cf_min'), mx=rd('#cf_max'); if((mn===null)||(mx===null)) return toast('数値を正しく入力してください',true); apply(mn===''&&mx===''?null:{min:mn,max:mx}); };
+    $('#cf_ok').onclick=()=>{ const mn=rd('#cf_min'), mx=rd('#cf_max'); if((mn===null)||(mx===null)) return toast(f.t==='date'?'日付を正しく入力してください（例: 2020/1/1、20200101、R2.1.1）':'数値を正しく入力してください',true); apply(mn===''&&mx===''?null:{min:mn,max:mx}); };
     [$('#cf_min'),$('#cf_max')].forEach(el=>el.onkeydown=e=>{ if(e.key==='Enter'&&!e.isComposing) $('#cf_ok').click(); }); $('#cf_min').focus();
   } else {
     const lst=$('#cf_lst'), boxes=[...lst.querySelectorAll('input[data-v]')], all=$('#cf_all');
@@ -1198,8 +1201,8 @@ function yenLive(el){
 document.addEventListener('compositionend', e=>{ if(e.target.matches && e.target.matches('input[data-yen]')) yenLive(e.target); });
 document.addEventListener('input', e=>{ const el=e.target; if(!el.matches) return; if(el.matches('input[data-yen]') && !e.isComposing) yenLive(el); });
 // 日付の入力欄（キーボードで「2020/1/1」「20200101」「R2.1.1」なども入力でき、📅 でカレンダーからも選べる）
-function dateInputHtml(id, v){
-  return `<span class="dti"><input class="inp" type="text" inputmode="numeric" data-date="1" id="${id}" value="${esc(v||'')}" placeholder="例: 2020/1/1" autocomplete="off"><button type="button" class="dtb" tabindex="-1" title="カレンダーから選ぶ" aria-label="カレンダーから選ぶ">📅</button><input type="date" class="dtp" tabindex="-1" aria-hidden="true"></span>`;
+function dateInputHtml(id, v, wrapStyle, inpStyle){
+  return `<span class="dti"${wrapStyle?` style="${wrapStyle}"`:''}><input class="inp" type="text" inputmode="numeric" data-date="1" id="${id}" value="${esc(v||'')}" placeholder="例: 2020/1/1" autocomplete="off"${inpStyle?` style="${inpStyle}"`:''}><button type="button" class="dtb" tabindex="-1" title="カレンダーから選ぶ" aria-label="カレンダーから選ぶ">📅</button><input type="date" class="dtp" tabindex="-1" aria-hidden="true"></span>`;
 }
 document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('.dti .dtb'); if(!b) return; e.preventDefault();
   const w=b.parentNode, t=w.querySelector('input[data-date]'), pk=w.querySelector('.dtp'); pk.value=toDate(t.value)||'';
