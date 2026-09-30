@@ -378,7 +378,7 @@ const CHANGELOG = [
   { d:'2026-09-30', k:'fix', t:'買取再販DBでまだ販売していない案件の粗利が「0 − 原価」のマイナスで計算され、仕入の担当者の営業成績がマイナスになることがあったのを修正しました。販売するまでは粗利 0 として扱い、販売して売上が入った時点で計上されます。' },
   { d:'2026-09-30', k:'imp', t:'日付の欄（歩合条件DBの適用開始日・適用終了日、各DBの契約日・決済日、物件概要書など すべて）を、キーボードで入力できるようにしました。「2020/1/1」「2020-01-01」「20200101」「2020年1月1日」「R2.1.1」「令和2年1月1日」などで入力でき、欄を離れると「2020-01-01」の形にそろいます。カレンダーから選びたいときは欄の右の 📅 を押してください。日付として読めない入力は欄が赤くなります。' },
   { d:'2026-09-30', k:'fix', t:'CSV取込などで「2020/2/30」のような存在しない日付が、そのまま登録されてしまうことがあったのを修正しました（空欄として扱います）。' },
-  { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」の ④ を「売上の登録先」にして、「仲介売上DB（仲介）」「買取再販DB（仕入）」「買取再販DB（販売）」のどれかを押して選ぶようにしました。選んだ先の入力欄が下に出て、取引台帳DBと一緒にまとめて登録されます。取引台帳DBから開いたときも買取再販DBに登録できます（取引区分はここで選んだものになり、③の見出しの横に表示されます）。'},
+  { d:'2026-09-30', k:'imp', t:'「📝 まとめて登録」を ④ 仲介売上（仲介売上DB）と ⑤ 買取再販（買取再販DB）の2つに分けました。取引台帳DBから開いたときも、⑤の「買取再販DBに登録する」にチェックを入れて「仕入」か「販売」を押すと、取引台帳DBと一緒に買取再販DBへ一括登録されます。⑤を入れると④のチェックは自動で外れます（両方に登録したいときは④にもチェックを入れてください）。取引区分は⑤の内容で自動で決まり、③の見出しの横に表示されます。' },
   { d:'2026-09-30', k:'add', t:'取引台帳DBの「CSV取込」で、買取の取引も買取再販DBに一括で登録できるようにしました。買主が自社の行は「買取_仕入」、売主が自社の行は「買取_販売」として取り込み（自社名は「設定 > 物件概要書」の会社名。CSVに「取引区分」の列があればそちらを優先）、同じ物件の買取再販DBの案件に自動で紐付けます。案件の空欄（取得・販売の契約日と決済日、仕入価格、原価、売上、所有日数）はCSVの値で埋め、すでに入っている値は変えません。案件が無い物件は新しく作ります。取込前の確認画面に、取引区分の内訳と買取再販DBで作る・書き足す件数が出ます。' },
   { d:'2026-09-30', k:'fix', t:'CSV取込で「取引区分」（取引台帳DB）や「状態」（仲介売上DB）の列を取り込んでも、決まった値（仲介・決済済）で上書きされていた不具合を修正しました。CSVに値があるときはその値で取り込みます。' },
 ];
@@ -2591,10 +2591,8 @@ function openBundle(preKind){
     <div class="f">${WZ_DEAL_KEYS.map(k=>wzField('deals',k,'wd_', k==='kind'?(preKind||'仲介'):null)).join('')}</div>
     <div class="sub" style="font-size:11.5px;margin:4px 0 0">総額は「土地＋建物＋消費税」、残金は「総額−手付金」で自動計算します（直接入力するとその値を使います）。</div>
 
-    <h3>④ 売上の登録先（仲介売上DB か 買取再販DB を選択）</h3>
-    <div class="kind"><div class="seg" id="wzKind" role="group" aria-label="売上の登録先">${[['仲介','仲介売上DB（仲介）'],['買取_仕入','買取再販DB（仕入）'],['買取_販売','買取再販DB（販売）']].map(([v,l])=>`<button type="button" data-k="${v}">${l}</button>`).join('')}</div><span class="to" id="wzKindTo"></span></div>
     <div id="wzBs">
-      <h3 class="sub">仲介売上DB に登録する内容・社内担当<label class="on"><input type="checkbox" id="wb_on" checked> 仲介売上DBにも登録する</label></h3>
+      <h3>④ 仲介売上（仲介売上DB）<label class="on"><input type="checkbox" id="wb_on" checked> 仲介売上DBに登録する</label></h3>
       <div id="wzBsBody">
         <div class="f">${['stance','status','cost_seller','cost_buyer','paid_on'].map(k=>wzField('brokerage_sales',k,'wb_')).join('')}
           <div class="w"><label>社内担当（営業成績は人数で均等に按分。あとで仲介売上DBの編集画面で変えられます）</label>
@@ -2603,9 +2601,11 @@ function openBundle(preKind){
         <div class="calc" id="wzCalc"></div>
       </div>
     </div>
-    <div id="wzRs" style="display:none">
-      <h3 class="sub"><span id="wzRsTitle">買取再販DB に登録する内容</span><label class="on"><input type="checkbox" id="wr_on" checked> 買取再販DBにも登録する</label></h3>
+    <div id="wzRs">
+      <h3>⑤ 買取再販（買取再販DB）<label class="on"><input type="checkbox" id="wr_on"> 買取再販DBに登録する</label></h3>
+      <div class="kind"><b>仕入か販売か</b><div class="seg" id="wzKind" role="group" aria-label="買取再販の仕入か販売か">${[['買取_仕入','仕入（新しい案件）'],['買取_販売','販売（仕入の案件に記録）']].map(([v,l])=>`<button type="button" data-k="${v}">${l}</button>`).join('')}</div><span class="to" id="wzKindTo"></span></div>
       <div id="wzRsBody">
+        <h3 class="sub" id="wzRsTitle">買取再販DB に登録する内容</h3>
         <div data-rs="sell" style="margin-bottom:10px"><label style="display:block;font-size:12px;color:var(--ink2);margin-bottom:3px">どの案件の販売ですか（仕入のときに登録した買取再販DBの案件）</label>
           <select class="inp" id="wr_pick" style="width:100%"></select><div class="st" id="wzs_r"></div></div>
         <div class="f">
@@ -2622,9 +2622,12 @@ function openBundle(preKind){
   </div><div class="wz" id="wzCf" style="display:none"></div>`;
   wzFootInput();
   $('#modal').classList.add('on'); $('#ov').classList.add('on');
-  // 取引区分は ④ の「売上の登録先」で選ぶ（③の選択欄は隠して、値の受け皿として使う）
+  // 取引区分は ⑤ 買取再販の有無と仕入／販売で決まる（③の選択欄は隠して、値の受け皿として使う）
   $('#wd_kind').parentNode.style.display='none';
-  $('#wzKind').querySelectorAll('button').forEach(bt=>bt.onclick=()=>{ $('#wd_kind').value=bt.dataset.k; wzRefresh(); });
+  const buyFirst = /^買取_/.test(preKind||'');
+  WZ.rsKind = buyFirst ? preKind : '買取_仕入'; $('#wr_on').checked = buyFirst; $('#wb_on').checked = !buyFirst;
+  $('#wzKind').querySelectorAll('button').forEach(bt=>bt.onclick=()=>{ WZ.rsKind=bt.dataset.k; $('#wr_on').checked=true; wzRefresh(); });
+  $('#wb_on').addEventListener('change',()=>{ $('#wb_on').dataset.manual='1'; });
   wzBind(); wzRefresh();
 }
 function wzFootInput(){ $('#mFoot').innerHTML = `<span id="wzFootMsg" style="flex:1;font-size:12px;color:var(--mute)"></span><button class="btn" onclick="closeModal()">キャンセル</button><button class="btn p" onclick="wzConfirm()">内容を確認</button>`; }
@@ -2686,12 +2689,15 @@ function wzRefresh(){
   if(!tot.dataset.manual && (L!=null||B!=null)) tot.value=((L||0)+(B||0)+(T||0)).toLocaleString('ja-JP');
   const TOT=wzYen('wd_total_price'), DEP=wzYen('wd_deposit');
   if(!bal.dataset.manual && TOT!=null && DEP!=null) bal.value=(TOT-DEP).toLocaleString('ja-JP');
+  // ⑤ 買取再販を登録するときは取引区分を「買取_仕入／買取_販売」、登録しないときは「仲介」にする
+  const rsOn=$('#wr_on').checked;
+  if(WZ.lastRsOn!==undefined && WZ.lastRsOn!==rsOn && !$('#wb_on').dataset.manual) $('#wb_on').checked=!rsOn;   // ⑤を入れたら④を外す（④を手で変えていれば、そのまま）
+  WZ.lastRsOn=rsOn;
+  $('#wd_kind').value = rsOn ? (WZ.rsKind||'買取_仕入') : '仲介';
+  { const kv=wzV('wd_kind'); $('#wzKind').querySelectorAll('button').forEach(bt=>{ const on=rsOn&&bt.dataset.k===kv; bt.classList.toggle('on',on); bt.setAttribute('aria-pressed',on); });
+    $('#wzKindTo').textContent = !rsOn ? '買取再販DBにも登録するときは、仕入か販売を押してください' : kv==='買取_仕入' ? '買取再販DBに新しい案件を作ります' : '仕入のときに作った買取再販DBの案件に、販売を記録します';
+    $('#wzKindChip').textContent = '取引区分: '+kv+(rsOn?'（⑤ 買取再販から自動）':'（⑤ 買取再販を登録すると買取になります）'); }
   // ④ 仲介売上
-  const isBroker = wzV('wd_kind')==='仲介';
-  $('#wzBs').style.display = isBroker ? '' : 'none';
-  { const kv=wzV('wd_kind'); $('#wzKind').querySelectorAll('button').forEach(bt=>{ bt.classList.toggle('on', bt.dataset.k===kv); bt.setAttribute('aria-pressed', bt.dataset.k===kv); });
-    $('#wzKindTo').textContent = {'仲介':'取引区分「仲介」で取引台帳DBに登録し、売上を仲介売上DBに登録します','買取_仕入':'取引区分「買取_仕入」で取引台帳DBに登録し、買取再販DBに新しい案件を作ります','買取_販売':'取引区分「買取_販売」で取引台帳DBに登録し、仕入のときの買取再販DBの案件に販売を記録します'}[kv]||'';
-    $('#wzKindChip').textContent = '取引区分: '+(kv||'—')+'（④で切り替え）'; }
   wzRefreshResale(pr, pn, L, B, T, TOT);
   $('#wzBsBody').style.display = $('#wb_on').checked ? '' : 'none';
   const fS=wzYen('wd_fee_seller_ex')||0, fB=wzYen('wd_fee_buyer_ex')||0, cS=wzYen('wb_cost_seller')||0, cB=wzYen('wb_cost_buyer')||0;
@@ -2747,7 +2753,7 @@ function wzPlan(){
   if(!deal.contract_date && !deal.settlement_date) errs.push('契約日か引渡日（決済日）のどちらかを入力してください');
   P.deal=deal;
   // ④ 仲介売上・担当割当
-  if(deal.kind==='仲介' && $('#wb_on') && $('#wb_on').checked){
+  if($('#wb_on') && $('#wb_on').checked){
     if(!deal.settlement_date) errs.push('仲介売上DBにも登録するときは、引渡日（決済日）を入れてください（予定日で構いません）');
     const c=WZ.calc||{}, stance=wzV('wb_stance')||null;
     const coName=s=>{ const n=wzV('wc_'+s); return n ? ((wzFindCo(n)||{}).name||n) : ''; };   // 共同仲介は企業情報DBの正式名で
@@ -2793,7 +2799,7 @@ function wzConfirm(){
   if(P.rs && !P.rsAssignees) warn.push('買取再販の社内担当が選ばれていないため、営業成績に反映されません。');
   if(d.property_id && store.list('deals').some(x=>x.property_id===d.property_id && (x.contract_date||'')===(d.contract_date||'') && (x.settlement_date||'')===(d.settlement_date||''))) warn.push('同じ物件・同じ日付の取引がすでに取引台帳DBにあります。二重登録になっていないか確認してください。');
   if(P.bs && !P.bs.stance) warn.push('スタンス（両手・元付・客付）が空欄です。');
-  if(P.bs && !P.assignees) warn.push('社内担当が選ばれていないため、営業成績に反映されません。');
+  if(P.bs && !P.assignees) warn.push('仲介売上の社内担当が選ばれていないため、営業成績に反映されません。');
   $('#wzIn').style.display='none'; const cf=$('#wzCf'); cf.style.display='';
   cf.innerHTML = `<p class="sub" style="margin-bottom:10px">次の内容で登録します。よければ「この内容で登録」を押してください。</p>
     ${warn.map(w=>`<div class="help" style="background:var(--amber2);border-color:#EBD3A8;color:var(--amber);margin-bottom:8px">⚠ ${esc(w)}</div>`).join('')}
@@ -2948,13 +2954,12 @@ const wzRsMode = () => ({'買取_仕入':'buy','買取_販売':'sell'})[wzV('wd_
 function wzRv(k){ const f=wzF('resale_projects',k), v=wzV('wr_'+k); if(v==='') return null; return f.t==='yen'?yenParse(toHalf(v)):f.t==='num'?num(toHalf(v)):f.t==='date'?toDate(v):v; }
 function wzRefreshResale(pr, pn, L, B, T, TOT){
   const mode=wzRsMode(), self=(ovCo().name||'').trim();
-  $('#wzRs').style.display = mode ? '' : 'none';
+  $('#wzRsBody').style.display = $('#wr_on').checked && mode ? '' : 'none';
   // 取引区分を買取に変えたとき: 自社を買主（仕入）／売主（販売）に入れる
   const kind=wzV('wd_kind');
   if(kind!==WZ.lastKind){ if(self && mode==='buy' && !wzV('wc_buyer')) $('#wc_buyer').value=self; if(self && mode==='sell' && !wzV('wc_seller')) $('#wc_seller').value=self; WZ.lastKind=kind; }
   if(!mode) return;
-  $('#wzRsTitle').textContent = mode==='buy' ? '買取再販DB に登録する内容（仕入）・社内担当' : '買取再販DB に登録する内容（販売）・社内担当';
-  $('#wzRsBody').style.display = $('#wr_on').checked ? '' : 'none';
+  $('#wzRsTitle').textContent = mode==='buy' ? '仕入の内容・社内担当' : '販売の内容・社内担当';
   $('#wzRsEmpL').textContent = `社内担当（成績項目「${mode==='buy'?'PJ仕入':'PJ販売'}」。営業成績は人数で均等に按分し、販売して粗利が出たときに計上されます）`;
   // 販売: 案件の候補（まだ売却していない案件。物件が同じものを先頭に）
   let base=null;
